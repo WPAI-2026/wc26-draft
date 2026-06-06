@@ -661,6 +661,13 @@ async function sync(){
 async function init(){
   myId=loadId();
   await refreshAll();
+  // Re-assert the claim for a name already saved on this device (idempotent).
+  // If someone else now owns it, step aside and show the picker.
+  if(myId && dbOK){
+    const {error}=await sb.rpc('claim_drafter',{p_drafter:myId});
+    if(error){toast(myId+" is now claimed on another device — choose again.");myId=null;saveId('');}
+    claimedSet=await loadClaims();
+  }
   renderId();renderHeroes();render();
   if(dbOK){
     // Instant push updates via Supabase Realtime (picks + the change log)…
