@@ -181,6 +181,19 @@
   .complete{text-align:center;font-family:'Anton',sans-serif;font-size:clamp(28px,7vw,56px);text-transform:uppercase;
     background:linear-gradient(180deg,var(--sun),var(--tang));-webkit-background-clip:text;background-clip:text;color:transparent;
     filter:drop-shadow(3px 3px 0 var(--mag));padding:14px;}
+
+  /* ===== locked identity ===== */
+  .idBtn.locked{opacity:.5;border-style:dashed;}
+  .idBtn .lockNote{display:block;font-family:'DM Mono',monospace;font-size:9px;letter-spacing:.05em;color:var(--sun);margin-top:4px;text-transform:none;}
+
+  /* ===== change log ===== */
+  .logWrap{margin-top:12px;display:flex;flex-direction:column;gap:6px;max-height:340px;overflow-y:auto;}
+  .logRow{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:8px 10px;border-radius:8px;
+    background:rgba(255,255,255,.04);border:1px solid var(--line);}
+  .logRow .logIc{font-size:15px;width:20px;text-align:center;}
+  .logRow .logTxt{font-size:13px;flex:1 1 200px;}
+  .logRow .logTxt b{color:var(--teal);}
+  .logRow .logMeta{font-family:'DM Mono',monospace;font-size:10.5px;color:#9c95cc;white-space:nowrap;}
 </style>
 </head>
 <body>
@@ -195,7 +208,7 @@
   <!-- IDENTITY -->
   <section class="panel" id="idPanel">
     <h2><span class="tag">STEP 1</span> Who are ya?</h2>
-    <p class="muted">Tap your name so the board knows who's drafting. This is saved to your device — everyone picks their own.</p>
+    <p class="muted">Tap your name to claim it. Your name then locks to this device — only you can draft as you, and nobody can pick on your behalf. Names already claimed elsewhere show a 🔒.</p>
     <div id="idGrid"></div>
     <div class="idBar" id="idBar" style="display:none;"></div>
   </section>
@@ -246,6 +259,13 @@
       <div class="mech"><div class="n"></div><div class="body"><b>Live for everyone.</b> When someone drafts, it updates on every device within a few seconds. Keep the page open to watch it unfold.</div></div>
       <div class="mech"><div class="n"></div><div class="body"><b>Winning.</b> However you've agreed to score it — last team standing, furthest run, total goals. The draft just hands out the nations; the glory's on you.</div></div>
     </div>
+  </section>
+
+  <!-- CHANGE LOG -->
+  <section class="panel">
+    <h2><span class="tag">AUDIT</span> Change Log</h2>
+    <p class="muted">Every claim, pick, undo and reset — recorded server-side with the device's IP and time. Newest first.</p>
+    <div id="log" class="logWrap"></div>
   </section>
 
   <!-- ORGANISER -->
@@ -336,6 +356,8 @@ try{
 
 /* ============ STATE ============ */
 let state={picks:[]};
+let events=[];          // change log rows
+let claimedSet={};      // drafter -> true if already locked to a device
 let myId=null;
 let activeFilter="ALL";
 
@@ -350,6 +372,24 @@ async function loadState(){
     return {picks:(data||[]).map(r=>({pick:r.pick,round:r.round,drafter:r.drafter,team:r.team,ts:r.created_at}))};
   }catch(e){console.error(e);return state;}
 }
+async function loadEvents(){
+  if(!dbOK) return [];
+  try{
+    const {data,error}=await sb.from('wc26_events')
+      .select('action,drafter,team,ip,created_at')
+      .order('created_at',{ascending:false}).limit(100);
+    if(error){console.error(error);return events;}
+    return data||[];
+  }catch(e){console.error(e);return events;}
+}
+async function loadClaims(){
+  if(!dbOK) return {};
+  try{
+    const {data,error}=await sb.from('wc26_claims').select('drafter');
+    if(error){console.error(error);return claimedSet;}
+    const m={};(data||[]).forEach(r=>m[r.drafter]=true);return m;
+  }catch(e){console.error(e);return claimedSet;}
+}
 // Identity is per-device, so it stays in the browser (localStorage).
 function loadId(){try{return localStorage.getItem(ID_KEY)||null;}catch(e){return null;}}
 function saveId(id){try{if(id)localStorage.setItem(ID_KEY,id);else localStorage.removeItem(ID_KEY);}catch(e){}}
@@ -361,8 +401,18 @@ function isComplete(){return state.picks.length>=48;}
 function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');clearTimeout(t._h);t._h=setTimeout(()=>t.classList.remove('show'),2600);}
 
 /* ============ ACTIONS ============ */
-function selectId(id){
-  myId=id; saveId(id); renderId(); render();
+async function selectId(id){
+  if(!dbOK){toast("No connection to the board.");return;}
+  // Lock this name to this device/IP. The server rejects it if another device already owns it.
+  try{
+    const {data,error}=await sb.rpc('claim_drafter',{p_drafter:id});
+    if(error){
+      toast(error.message||(id+" is taken on another device."));
+      claimedSet=await loadClaims(); renderId(); return;
+    }
+  }catch(e){toast("Couldn't claim that name — try again.");return;}
+  myId=id; saveId(id);
+  claimedSet=await loadClaims(); renderId(); render();
 }
 async function draftTeam(team){
   if(!dbOK){toast("No connection to the board.");return;}
@@ -376,12 +426,13 @@ async function draftTeam(team){
     pick:state.picks.length+1, round:cur.round, drafter:myId, team:team
   });
   if(error){
-    // Unique conflict on pick# or team => someone drafted at the same moment.
-    toast("Someone just beat you to it — board refreshed.");
-    state=await loadState(); render(); return;
+    // 42501 = our IP/claim guard; 23505 = unique conflict (someone drafted at the same instant)
+    if(error.code==='42501') toast(error.message);
+    else toast("Someone just beat you to it — board refreshed.");
+    await refreshAll(); render(); return;
   }
   toast("You bagged "+team+" "+(FLAG[team]||""));
-  state=await loadState(); render();
+  await refreshAll(); render();
 }
 async function undoLast(){
   if(!dbOK){toast("No connection to the board.");return;}
@@ -389,19 +440,19 @@ async function undoLast(){
   if(!state.picks.length){toast("Nothing to undo.");return;}
   const last=state.picks[state.picks.length-1];
   if(!confirm("Undo the last pick? That removes "+last.team+" from "+last.drafter+".")) return;
-  const {error}=await sb.from('wc26_picks').delete().eq('pick',last.pick);
+  const {error}=await sb.rpc('undo_last');
   if(error){toast("Couldn't undo — try again.");console.error(error);}
   else toast("Undid "+last.team);
-  state=await loadState(); render();
+  await refreshAll(); render();
 }
 async function resetDraft(){
   if(!dbOK){toast("No connection to the board.");return;}
   if(!confirm("Reset the ENTIRE draft for everyone? This cannot be undone."))return;
   if(!confirm("Are you totally sure? All picks will be wiped."))return;
-  const {error}=await sb.from('wc26_picks').delete().gte('pick',1);
+  const {error}=await sb.rpc('reset_draft');
   if(error){toast("Reset failed — try again.");console.error(error);}
   else toast("Board reset.");
-  state=await loadState(); render();
+  await refreshAll(); render();
 }
 
 /* ============ RENDER ============ */
@@ -414,7 +465,11 @@ function renderId(){
       '<button class="linkbtn" onclick="changeId()">change</button>';
   }else{
     grid.style.display="grid";bar.style.display="none";
-    grid.innerHTML=DRAFTERS.map(d=>'<button class="idBtn" onclick="selectId(\''+d+'\')">'+d+'</button>').join('');
+    grid.innerHTML=DRAFTERS.map(d=>{
+      const locked=claimedSet[d];
+      return '<button class="idBtn'+(locked?' locked':'')+'" onclick="selectId(\''+d+'\')">'+
+        d+(locked?'<span class="lockNote">🔒 on another device</span>':'')+'</button>';
+    }).join('');
   }
 }
 window.changeId=function(){myId=null;saveId('');renderId();render();};
@@ -566,24 +621,53 @@ function renderStatus(){
   s.innerHTML='<span class="live">●</span> Live · '+state.picks.length+'/48 picked · syncs across all devices';
 }
 
+function fmtTime(ts){
+  try{const d=new Date(ts);return d.toLocaleString(undefined,{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});}
+  catch(e){return ts;}
+}
+const ACTION_META={
+  claimed:{ic:'🪪',txt:(e)=>'<b>'+e.drafter+'</b> claimed their spot'},
+  drafted:{ic:'✅',txt:(e)=>'<b>'+e.drafter+'</b> drafted <b>'+(FLAG[e.team]||'')+' '+e.team+'</b>'},
+  undo:{ic:'↶',txt:(e)=>'<b>'+e.team+'</b> removed from <b>'+e.drafter+'</b> (undo)'},
+  reset:{ic:'⟲',txt:(e)=>'<b>whole board reset</b>'}
+};
+function renderLog(){
+  const cont=document.getElementById('log');
+  if(!cont)return;
+  if(!dbOK){cont.innerHTML='<p class="muted">Log unavailable — no connection.</p>';return;}
+  if(!events.length){cont.innerHTML='<p class="muted">No activity yet. Claims and picks will show up here.</p>';return;}
+  cont.innerHTML=events.map(e=>{
+    const m=ACTION_META[e.action]||{ic:'•',txt:()=>e.action};
+    return '<div class="logRow"><span class="logIc">'+m.ic+'</span>'+
+      '<span class="logTxt">'+m.txt(e)+'</span>'+
+      '<span class="logMeta">'+fmtTime(e.created_at)+' · IP '+(e.ip||'—')+'</span></div>';
+  }).join('');
+}
+
 function render(){
-  renderClock();renderBoard();renderFilters();renderTeams();renderRosters();renderStatus();
+  renderClock();renderBoard();renderFilters();renderTeams();renderRosters();renderStatus();renderLog();
 }
 
 /* ============ POLL / INIT ============ */
+async function refreshAll(){
+  const [s,ev,cl]=await Promise.all([loadState(),loadEvents(),loadClaims()]);
+  state=s; events=ev; claimedSet=cl;
+}
 async function sync(){
-  const fresh=await loadState();
-  if(JSON.stringify(fresh)!==JSON.stringify(state)){state=fresh;render();}
+  const before=JSON.stringify(state)+JSON.stringify(events)+JSON.stringify(claimedSet);
+  await refreshAll();
+  if(JSON.stringify(state)+JSON.stringify(events)+JSON.stringify(claimedSet)!==before){renderId();render();}
 }
 async function init(){
   myId=loadId();
-  state=await loadState();
+  await refreshAll();
   renderId();renderHeroes();render();
   if(dbOK){
-    // Instant push updates via Supabase Realtime…
+    // Instant push updates via Supabase Realtime (picks + the change log)…
     try{
       sb.channel('wc26_draft')
         .on('postgres_changes',{event:'*',schema:'public',table:'wc26_picks'},()=>sync())
+        .on('postgres_changes',{event:'*',schema:'public',table:'wc26_events'},()=>sync())
         .subscribe();
     }catch(e){console.error(e);}
     // …plus a safety-net poll in case a realtime event is missed.
