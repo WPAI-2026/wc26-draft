@@ -354,6 +354,15 @@ try{
   if(window.supabase && SUPABASE_URL){ sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY); dbOK=true; }
 }catch(e){console.error("Supabase init failed",e);}
 
+// Persistent per-device token — this is what locks an identity to one device.
+const DEVICE_ID=(function(){
+  try{
+    let d=localStorage.getItem('wc26_device_v1');
+    if(!d){d=(window.crypto&&crypto.randomUUID)?crypto.randomUUID():('dev-'+Date.now()+'-'+Math.random().toString(36).slice(2));localStorage.setItem('wc26_device_v1',d);}
+    return d;
+  }catch(e){return 'dev-'+Math.random().toString(36).slice(2);}
+})();
+
 /* ============ STATE ============ */
 let state={picks:[]};
 let events=[];          // change log rows
@@ -405,7 +414,7 @@ async function selectId(id){
   if(!dbOK){toast("No connection to the board.");return;}
   // Lock this name to this device/IP. The server rejects it if another device already owns it.
   try{
-    const {data,error}=await sb.rpc('claim_drafter',{p_drafter:id});
+    const {data,error}=await sb.rpc('claim_drafter',{p_drafter:id,p_device:DEVICE_ID});
     if(error){
       toast(error.message||(id+" is taken on another device."));
       claimedSet=await loadClaims(); renderId(); return;
@@ -423,7 +432,7 @@ async function draftTeam(team){
   if(cur.drafter!==myId){toast("Not your pick — it's "+cur.drafter+"'s turn.");render();return;}
   if(state.picks.some(p=>p.team===team)){toast(team+" is already gone.");render();return;}
   const {error}=await sb.from('wc26_picks').insert({
-    pick:state.picks.length+1, round:cur.round, drafter:myId, team:team
+    pick:state.picks.length+1, round:cur.round, drafter:myId, team:team, device_id:DEVICE_ID
   });
   if(error){
     // 42501 = our IP/claim guard; 23505 = unique conflict (someone drafted at the same instant)
@@ -664,7 +673,7 @@ async function init(){
   // Re-assert the claim for a name already saved on this device (idempotent).
   // If someone else now owns it, step aside and show the picker.
   if(myId && dbOK){
-    const {error}=await sb.rpc('claim_drafter',{p_drafter:myId});
+    const {error}=await sb.rpc('claim_drafter',{p_drafter:myId,p_device:DEVICE_ID});
     if(error){toast(myId+" is now claimed on another device — choose again.");myId=null;saveId('');}
     claimedSet=await loadClaims();
   }
