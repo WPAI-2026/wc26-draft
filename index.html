@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WORLD CUP '26 — THE BIG DRAFT</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Archivo:wght@400;600;800;900&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root{
+    --navy:#161349; --navy2:#241a5e; --ink:#0d0b2b;
+    --mag:#ff2d7e; --teal:#00e6c3; --sun:#ffd23f; --tang:#ff7a2f;
+    --cobalt:#3d5afe; --pitch:#23c552; --paper:#f4f0e6;
+    --line:rgba(255,255,255,.14);
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  html{scroll-behavior:smooth;}
+  body{
+    font-family:'Archivo',sans-serif;
+    color:var(--paper);
+    background:
+      radial-gradient(circle at 15% 10%, rgba(255,45,126,.25), transparent 40%),
+      radial-gradient(circle at 85% 20%, rgba(0,230,195,.20), transparent 42%),
+      radial-gradient(circle at 50% 100%, rgba(61,90,254,.28), transparent 55%),
+      linear-gradient(165deg,var(--navy),var(--ink) 70%);
+    background-attachment:fixed;
+    min-height:100vh;
+    overflow-x:hidden;
+    position:relative;
+  }
+  /* halftone + scanline atmosphere */
+  body::before{
+    content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
+    background-image:radial-gradient(rgba(255,255,255,.05) 1px, transparent 1.4px);
+    background-size:10px 10px;
+  }
+  body::after{
+    content:"";position:fixed;inset:0;pointer-events:none;z-index:0;opacity:.5;
+    background:repeating-linear-gradient(to bottom, transparent 0 3px, rgba(0,0,0,.06) 3px 4px);
+  }
+  .wrap{position:relative;z-index:1;max-width:1180px;margin:0 auto;padding:18px 16px 80px;}
+
+  /* ===== chevron band ===== */
+  .chev{height:14px;width:100%;
+    background:repeating-linear-gradient(135deg,var(--mag) 0 18px,var(--ink) 18px 24px,var(--teal) 24px 42px,var(--ink) 42px 48px,var(--sun) 48px 66px,var(--ink) 66px 72px);
+    border-radius:4px;box-shadow:0 4px 0 rgba(0,0,0,.4);}
+
+  /* ===== header ===== */
+  header{text-align:center;padding:26px 0 10px;}
+  .kicker{font-family:'DM Mono',monospace;letter-spacing:.4em;font-size:11px;color:var(--teal);text-transform:uppercase;margin-bottom:8px;}
+  h1{font-family:'Anton',sans-serif;line-height:.86;text-transform:uppercase;
+    font-size:clamp(46px,12vw,116px);letter-spacing:1px;
+    background:linear-gradient(180deg,#fff 30%,var(--sun) 55%,var(--tang) 100%);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+    text-shadow:0 0 0 transparent;filter:drop-shadow(5px 5px 0 var(--mag)) drop-shadow(9px 9px 0 var(--cobalt));}
+  .sub{font-family:'DM Mono',monospace;font-size:13px;color:#cfc8ff;margin-top:14px;letter-spacing:.12em;}
+  .sub b{color:var(--sun);}
+
+  /* ===== panels ===== */
+  .panel{background:linear-gradient(180deg,rgba(36,26,94,.92),rgba(13,11,43,.92));
+    border:3px solid var(--line);border-radius:14px;padding:20px;margin:18px 0;
+    box-shadow:8px 8px 0 rgba(0,0,0,.45);}
+  .panel h2{font-family:'Anton',sans-serif;text-transform:uppercase;font-size:26px;letter-spacing:1px;
+    display:flex;align-items:center;gap:10px;margin-bottom:6px;}
+  .panel h2 .tag{font-family:'DM Mono',monospace;font-size:11px;background:var(--mag);color:#fff;
+    padding:3px 8px;border-radius:4px;letter-spacing:.1em;}
+  .muted{color:#aaa3d6;font-size:13px;line-height:1.5;}
+
+  /* ===== identity ===== */
+  #idGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:10px;margin-top:14px;}
+  .idBtn{font-family:'Anton',sans-serif;font-size:20px;letter-spacing:.5px;text-transform:uppercase;
+    padding:14px 8px;border:3px solid var(--line);border-radius:10px;cursor:pointer;color:var(--paper);
+    background:linear-gradient(180deg,#2c2070,#1a1450);transition:transform .08s, box-shadow .08s;
+    box-shadow:4px 4px 0 rgba(0,0,0,.4);}
+  .idBtn:hover{transform:translate(-2px,-2px);box-shadow:6px 6px 0 rgba(0,0,0,.45);}
+  .idBtn.me{background:linear-gradient(180deg,var(--teal),#00b89c);color:var(--ink);border-color:#fff;}
+  .idBar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:6px;}
+  .pill{font-family:'DM Mono',monospace;font-size:12px;padding:6px 12px;border-radius:20px;border:2px solid var(--line);}
+  .pill b{color:var(--teal);}
+  .linkbtn{background:none;border:none;color:var(--sun);font-family:'DM Mono',monospace;font-size:12px;cursor:pointer;text-decoration:underline;}
+
+  /* ===== on the clock ===== */
+  #clock{text-align:center;border:3px solid var(--sun);position:relative;overflow:hidden;}
+  #clock.mine{border-color:var(--teal);box-shadow:8px 8px 0 rgba(0,230,195,.25);}
+  #clock .lbl{font-family:'DM Mono',monospace;letter-spacing:.35em;font-size:12px;color:var(--sun);text-transform:uppercase;}
+  #clock.mine .lbl{color:var(--teal);}
+  #clock .who{font-family:'Anton',sans-serif;font-size:clamp(40px,10vw,82px);text-transform:uppercase;line-height:.9;margin:6px 0;
+    filter:drop-shadow(3px 3px 0 var(--mag));}
+  #clock .meta{font-family:'DM Mono',monospace;font-size:13px;color:#cfc8ff;}
+  .blip{display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--mag);margin-right:6px;
+    animation:blip 1s infinite;}
+  @keyframes blip{0%,100%{opacity:1;transform:scale(1);}50%{opacity:.3;transform:scale(.6);}}
+
+  /* ===== draft board ===== */
+  .boardScroll{overflow-x:auto;padding-bottom:8px;}
+  table.board{border-collapse:separate;border-spacing:6px;width:100%;min-width:760px;}
+  table.board th{font-family:'Anton',sans-serif;text-transform:uppercase;font-size:15px;letter-spacing:.5px;
+    padding:8px 6px;color:var(--ink);border-radius:8px;background:var(--sun);white-space:nowrap;}
+  table.board th.rnd{background:var(--cobalt);color:#fff;font-family:'DM Mono',monospace;font-size:12px;width:54px;}
+  table.board td{background:rgba(255,255,255,.04);border:2px solid var(--line);border-radius:8px;
+    padding:7px 8px;font-size:13px;height:50px;vertical-align:middle;min-width:120px;}
+  table.board td.filled{background:linear-gradient(180deg,#2c2070,#1a1450);border-color:var(--teal);}
+  table.board td .fl{font-size:18px;margin-right:4px;}
+  table.board td .pk{font-family:'DM Mono',monospace;font-size:10px;color:var(--sun);display:block;}
+  table.board td.now{border-color:var(--mag);box-shadow:0 0 0 2px var(--mag);animation:pulse 1.4s infinite;}
+  @keyframes pulse{0%,100%{box-shadow:0 0 0 2px var(--mag);}50%{box-shadow:0 0 0 5px rgba(255,45,126,.4);}}
+  .snakearrow{font-family:'DM Mono',monospace;font-size:10px;color:var(--teal);text-align:center;}
+
+  /* ===== teams ===== */
+  .filters{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0;}
+  .fbtn{font-family:'DM Mono',monospace;font-size:12px;padding:6px 12px;border-radius:20px;cursor:pointer;
+    border:2px solid var(--line);background:rgba(255,255,255,.05);color:var(--paper);}
+  .fbtn.on{background:var(--mag);border-color:#fff;color:#fff;}
+  .grpTitle{font-family:'Anton',sans-serif;text-transform:uppercase;font-size:16px;color:var(--sun);
+    margin:18px 0 8px;letter-spacing:1px;border-bottom:2px dashed var(--line);padding-bottom:4px;}
+  .teamGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;}
+  .team{display:flex;align-items:center;gap:9px;padding:11px 12px;border-radius:10px;border:3px solid var(--line);
+    background:linear-gradient(180deg,#2a2068,#191350);cursor:default;position:relative;
+    box-shadow:3px 3px 0 rgba(0,0,0,.4);transition:transform .08s,box-shadow .08s,opacity .15s;}
+  .team .flag{font-size:24px;line-height:1;}
+  .team .nm{font-weight:800;font-size:14px;line-height:1.05;}
+  .team.draftable{cursor:pointer;border-color:var(--teal);}
+  .team.draftable:hover{transform:translate(-2px,-2px);box-shadow:5px 5px 0 var(--teal);}
+  .team.taken{opacity:.42;border-style:dashed;filter:grayscale(.4);}
+  .team.taken .by{position:absolute;right:8px;top:6px;font-family:'DM Mono',monospace;font-size:9px;
+    background:var(--mag);color:#fff;padding:2px 6px;border-radius:10px;}
+  .team .grpdot{position:absolute;left:-3px;top:-3px;width:14px;height:14px;border-radius:50%;border:2px solid var(--ink);}
+
+  /* ===== rosters ===== */
+  .rostGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px;margin-top:14px;}
+  .rost{border:3px solid var(--line);border-radius:12px;padding:14px;background:linear-gradient(180deg,rgba(44,32,112,.6),rgba(13,11,43,.7));
+    box-shadow:5px 5px 0 rgba(0,0,0,.4);}
+  .rost.me{border-color:var(--teal);}
+  .rost h3{font-family:'Anton',sans-serif;text-transform:uppercase;font-size:22px;letter-spacing:.5px;display:flex;justify-content:space-between;align-items:baseline;}
+  .rost h3 span{font-family:'DM Mono',monospace;font-size:12px;color:var(--sun);}
+  .rost ul{list-style:none;margin-top:10px;display:flex;flex-direction:column;gap:6px;}
+  .rost li{display:flex;align-items:center;gap:8px;font-size:14px;padding:6px 8px;border-radius:7px;background:rgba(255,255,255,.04);}
+  .rost li .fl{font-size:18px;}
+  .rost li.empty{opacity:.35;font-style:italic;font-size:12px;background:none;border:1px dashed var(--line);}
+
+  /* ===== cult heroes ===== */
+  .heroStrip{display:flex;gap:14px;overflow-x:auto;padding:6px 2px 14px;scroll-snap-type:x mandatory;}
+  .heroCard{scroll-snap-align:center;flex:0 0 200px;border:3px solid #000;border-radius:12px;overflow:hidden;
+    background:var(--paper);color:var(--ink);box-shadow:5px 5px 0 rgba(0,0,0,.5);position:relative;}
+  .heroCard .pic{height:150px;position:relative;display:flex;align-items:flex-end;justify-content:center;}
+  .heroCard .name{font-family:'Anton',sans-serif;text-transform:uppercase;font-size:18px;line-height:.95;padding:8px 10px 2px;}
+  .heroCard .role{font-family:'DM Mono',monospace;font-size:10px;padding:0 10px;color:#555;}
+  .heroCard .fact{font-size:11.5px;line-height:1.35;padding:7px 10px 12px;}
+  .heroCard .yr{position:absolute;top:8px;right:8px;font-family:'Anton',sans-serif;background:#000;color:#fff;
+    font-size:13px;padding:2px 7px;border-radius:5px;}
+  .heroCard .natban{position:absolute;bottom:0;left:0;width:100%;height:8px;}
+
+  /* ===== mechanics ===== */
+  .mechList{counter-reset:m;display:flex;flex-direction:column;gap:12px;margin-top:10px;}
+  .mech{display:flex;gap:14px;align-items:flex-start;}
+  .mech .n{counter-increment:m;font-family:'Anton',sans-serif;font-size:30px;color:var(--ink);
+    background:var(--teal);min-width:46px;height:46px;display:flex;align-items:center;justify-content:center;border-radius:10px;
+    box-shadow:3px 3px 0 rgba(0,0,0,.4);}
+  .mech .n::before{content:counter(m);}
+  .mech .body{font-size:14px;line-height:1.5;padding-top:3px;}
+  .mech .body b{color:var(--sun);}
+
+  /* ===== organiser ===== */
+  .org{margin-top:26px;border:3px dashed var(--mag);border-radius:12px;padding:16px;background:rgba(255,45,126,.06);}
+  .org summary{font-family:'Anton',sans-serif;text-transform:uppercase;font-size:18px;cursor:pointer;color:var(--mag);letter-spacing:.5px;}
+  .org .row{display:flex;flex-wrap:wrap;gap:10px;margin-top:12px;}
+  .dgr{font-family:'Anton',sans-serif;text-transform:uppercase;letter-spacing:.5px;font-size:14px;padding:10px 16px;border-radius:8px;
+    border:3px solid #000;cursor:pointer;box-shadow:3px 3px 0 rgba(0,0,0,.4);}
+  .dgr.undo{background:var(--sun);color:#000;}
+  .dgr.reset{background:var(--mag);color:#fff;}
+
+  .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:50;
+    background:#000;border:2px solid var(--teal);color:#fff;font-family:'DM Mono',monospace;font-size:13px;
+    padding:12px 18px;border-radius:8px;box-shadow:0 6px 20px rgba(0,0,0,.5);opacity:0;pointer-events:none;transition:opacity .25s,transform .25s;}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(-4px);}
+
+  .status{font-family:'DM Mono',monospace;font-size:11px;color:#9c95cc;text-align:center;margin-top:8px;}
+  .live{color:var(--pitch);}
+  .complete{text-align:center;font-family:'Anton',sans-serif;font-size:clamp(28px,7vw,56px);text-transform:uppercase;
+    background:linear-gradient(180deg,var(--sun),var(--tang));-webkit-background-clip:text;background-clip:text;color:transparent;
+    filter:drop-shadow(3px 3px 0 var(--mag));padding:14px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="chev"></div>
+  <header>
+    <div class="kicker">USA · Canada · Mexico — Summer '26</div>
+    <h1>The Big<br>Draft</h1>
+    <div class="sub">8-Man Snake Sweepstake · <b>48 Nations</b> · 6 Picks Each · No Clock, No Mercy</div>
+  </header>
+
+  <!-- IDENTITY -->
+  <section class="panel" id="idPanel">
+    <h2><span class="tag">STEP 1</span> Who are ya?</h2>
+    <p class="muted">Tap your name so the board knows who's drafting. This is saved to your device — everyone picks their own.</p>
+    <div id="idGrid"></div>
+    <div class="idBar" id="idBar" style="display:none;"></div>
+  </section>
+
+  <!-- ON THE CLOCK -->
+  <section class="panel" id="clock">
+    <div class="lbl"><span class="blip"></span>On the clock</div>
+    <div class="who" id="clockWho">—</div>
+    <div class="meta" id="clockMeta">Loading the board…</div>
+  </section>
+
+  <!-- DRAFT BOARD -->
+  <section class="panel">
+    <h2><span class="tag">LIVE</span> The Board</h2>
+    <p class="muted">Snake order — it reverses every round. Pick <b>1</b> overall starts top-left.</p>
+    <div class="boardScroll"><div id="board"></div></div>
+    <div class="status" id="liveStatus">● syncing…</div>
+  </section>
+
+  <!-- TEAMS -->
+  <section class="panel">
+    <h2><span class="tag">POOL</span> Pick a Nation</h2>
+    <p class="muted" id="teamHint">Select your name above to start drafting. Tap any available nation when it's your turn.</p>
+    <div class="filters" id="filters"></div>
+    <div id="teams"></div>
+  </section>
+
+  <!-- ROSTERS -->
+  <section class="panel">
+    <h2><span class="tag">SQUADS</span> The Hauls</h2>
+    <div class="rostGrid" id="rosters"></div>
+  </section>
+
+  <!-- CULT HEROES -->
+  <section class="panel">
+    <h2><span class="tag">90s</span> Cult Hero Sticker Wall</h2>
+    <p class="muted">Stylised tribute cards to the niche legends of '90s international football. (Silhouettes are illustrative — not the real lads.)</p>
+    <div class="heroStrip" id="heroes"></div>
+  </section>
+
+  <!-- MECHANICS -->
+  <section class="panel">
+    <h2><span class="tag">RULES</span> How It Works</h2>
+    <div class="mechList">
+      <div class="mech"><div class="n"></div><div class="body"><b>Snake order.</b> Round 1 runs Rob → Mike → Freddie → Ryan → Jordan → Chris → Will → Dean. Round 2 flips it (Dean first), Round 3 flips back, and so on for 6 rounds.</div></div>
+      <div class="mech"><div class="n"></div><div class="body"><b>Everyone gets 6 nations.</b> 8 drafters × 6 rounds = all 48 World Cup teams drafted. Nothing left on the shelf.</div></div>
+      <div class="mech"><div class="n"></div><div class="body"><b>No time limit.</b> Take all the time you want — the board waits. It only unlocks the pick button for whoever is on the clock.</div></div>
+      <div class="mech"><div class="n"></div><div class="body"><b>Live for everyone.</b> When someone drafts, it updates on every device within a few seconds. Keep the page open to watch it unfold.</div></div>
+      <div class="mech"><div class="n"></div><div class="body"><b>Winning.</b> However you've agreed to score it — last team standing, furthest run, total goals. The draft just hands out the nations; the glory's on you.</div></div>
+    </div>
+  </section>
+
+  <!-- ORGANISER -->
+  <details class="org">
+    <summary>⚙ Organiser controls</summary>
+    <p class="muted" style="margin-top:8px;">These affect the shared board for <b>everyone</b>. Use with care.</p>
+    <div class="row">
+      <button class="dgr undo" id="undoBtn">↶ Undo last pick</button>
+      <button class="dgr reset" id="resetBtn">⟲ Reset whole draft</button>
+    </div>
+  </details>
+
+  <div class="chev" style="margin-top:26px;"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ============ DATA ============ */
+const DRAFTERS = ["Rob","Mike","Freddie","Ryan","Jordan","Chris","Will","Dean"];
+const ROUNDS = 6;
+const KEY = "wc26_draft_state_v1";
+const ID_KEY = "wc26_my_identity_v1";
+
+// 48 qualified teams by official group (2026)
+const GROUPS = {
+  "A":[["Mexico","🇲🇽"],["South Africa","🇿🇦"],["Korea Republic","🇰🇷"],["Czechia","🇨🇿"]],
+  "B":[["Canada","🇨🇦"],["Bosnia & Herzegovina","🇧🇦"],["Qatar","🇶🇦"],["Switzerland","🇨🇭"]],
+  "C":[["Brazil","🇧🇷"],["Morocco","🇲🇦"],["Scotland","🏴󠁧󠁢󠁳󠁣󠁴󠁿"],["Haiti","🇭🇹"]],
+  "D":[["United States","🇺🇸"],["Australia","🇦🇺"],["Paraguay","🇵🇾"],["Türkiye","🇹🇷"]],
+  "E":[["Germany","🇩🇪"],["Ecuador","🇪🇨"],["Côte d'Ivoire","🇨🇮"],["Curaçao","🇨🇼"]],
+  "F":[["Netherlands","🇳🇱"],["Japan","🇯🇵"],["Tunisia","🇹🇳"],["Sweden","🇸🇪"]],
+  "G":[["Belgium","🇧🇪"],["Iran","🇮🇷"],["Egypt","🇪🇬"],["New Zealand","🇳🇿"]],
+  "H":[["Spain","🇪🇸"],["Uruguay","🇺🇾"],["Saudi Arabia","🇸🇦"],["Cape Verde","🇨🇻"]],
+  "I":[["France","🇫🇷"],["Norway","🇳🇴"],["Senegal","🇸🇳"],["Iraq","🇮🇶"]],
+  "J":[["Argentina","🇦🇷"],["Austria","🇦🇹"],["Algeria","🇩🇿"],["Jordan","🇯🇴"]],
+  "K":[["Portugal","🇵🇹"],["Colombia","🇨🇴"],["Uzbekistan","🇺🇿"],["DR Congo","🇨🇩"]],
+  "L":[["England","🏴󠁧󠁢󠁥󠁮󠁧󠁿"],["Croatia","🇭🇷"],["Ghana","🇬🇭"],["Panama","🇵🇦"]]
+};
+const GROUP_COLORS={A:"#ff2d7e",B:"#00e6c3",C:"#ffd23f",D:"#ff7a2f",E:"#3d5afe",F:"#23c552",
+  G:"#e056fd",H:"#ff6b6b",I:"#48dbfb",J:"#feca57",K:"#1dd1a1",L:"#ff9ff3"};
+const FLAG={}; const TEAM_GROUP={};
+Object.entries(GROUPS).forEach(([g,arr])=>arr.forEach(([n,f])=>{FLAG[n]=f;TEAM_GROUP[n]=g;}));
+const ALL_TEAMS = Object.keys(FLAG);
+
+// Cult heroes — stylised tribute (no real photos)
+const HEROES=[
+  {n:"René Higuita",c:"Colombia",y:"1990",col:["#fcd116","#003893","#ce1126"],hair:"curls",
+   f:"El Loco — the keeper who rushed out like a sweeper and invented the Scorpion Kick clearance at Wembley."},
+  {n:"Roger Milla",c:"Cameroon",y:"1990",col:["#007a5e","#ce1126","#fcd116"],hair:"bald",
+   f:"38 years old, danced at the corner flag after every goal, dragged Cameroon to the quarters."},
+  {n:"Hristo Stoichkov",c:"Bulgaria",y:"1994",col:["#fff","#00966e","#d62612"],hair:"short",
+   f:"Golden Boot and a fourth-place run nobody saw coming. Pure venom in the left boot."},
+  {n:"Gheorghe Hagi",c:"Romania",y:"1994",col:["#002b7f","#fcd116","#ce1126"],hair:"short",
+   f:"The Maradona of the Carpathians. Lobbed keepers from the halfway line for fun."},
+  {n:"Saeed Al-Owairan",c:"Saudi Arabia",y:"1994",col:["#006c35","#fff","#006c35"],hair:"short",
+   f:"Picked the ball up in his own half and slalomed past half of Belgium to score."},
+  {n:"Oleg Salenko",c:"Russia",y:"1994",col:["#fff","#0039a6","#d52b1e"],hair:"short",
+   f:"Five goals in a single World Cup match vs Cameroon — a record that still stands."},
+  {n:"Davor Šuker",c:"Croatia",y:"1998",col:["#ff0000","#fff","#171796"],hair:"short",
+   f:"Golden Boot as Croatia stormed to third on debut. That chip over Schmeichel — chef's kiss."},
+  {n:"Jorge Campos",c:"Mexico",y:"1994",col:["#006847","#fff","#ce1126"],hair:"curls",
+   f:"Goalkeeper who designed his own neon kits and wandered up front to play striker."},
+  {n:"Bebeto",c:"Brazil",y:"1994",col:["#fcd116","#009b3a","#002776"],hair:"short",
+   f:"The rock-the-baby celebration after his goal vs Netherlands became football folklore."},
+  {n:"Alexi Lalas",c:"USA",y:"1994",col:["#b22234","#fff","#3c3b6e"],hair:"beard",
+   f:"Red-bearded, guitar-strumming defender who became the face of soccer's US arrival."}
+];
+
+/* ============ DERIVED ============ */
+function buildSequence(){
+  const seq=[];
+  for(let r=0;r<ROUNDS;r++){
+    const order=(r%2===0)?DRAFTERS:[...DRAFTERS].slice().reverse();
+    order.forEach((d,i)=>seq.push({round:r+1,slot:DRAFTERS.indexOf(d),drafter:d,dir:(r%2===0?'fwd':'rev')}));
+  }
+  return seq;
+}
+const SEQ=buildSequence(); // 48 entries
+
+/* ============ SUPABASE ============ */
+const SUPABASE_URL="https://ckgvffbxrmdlcskcwayt.supabase.co";
+const SUPABASE_KEY="sb_publishable_xHKxZut3YjSuYQp8gsALsA_DIRE1RhM";
+let sb=null, dbOK=false;
+try{
+  if(window.supabase && SUPABASE_URL){ sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY); dbOK=true; }
+}catch(e){console.error("Supabase init failed",e);}
+
+/* ============ STATE ============ */
+let state={picks:[]};
+let myId=null;
+let activeFilter="ALL";
+
+// Shared draft state lives in the Supabase table `wc26_picks` (one row per pick).
+async function loadState(){
+  if(!dbOK) return state;
+  try{
+    const {data,error}=await sb.from('wc26_picks')
+      .select('pick,round,drafter,team,created_at')
+      .order('pick',{ascending:true});
+    if(error){console.error(error);return state;}
+    return {picks:(data||[]).map(r=>({pick:r.pick,round:r.round,drafter:r.drafter,team:r.team,ts:r.created_at}))};
+  }catch(e){console.error(e);return state;}
+}
+// Identity is per-device, so it stays in the browser (localStorage).
+function loadId(){try{return localStorage.getItem(ID_KEY)||null;}catch(e){return null;}}
+function saveId(id){try{if(id)localStorage.setItem(ID_KEY,id);else localStorage.removeItem(ID_KEY);}catch(e){}}
+
+/* ============ HELPERS ============ */
+function takenMap(){const m={};state.picks.forEach(p=>m[p.team]=p.drafter);return m;}
+function currentEntry(){return state.picks.length<48?SEQ[state.picks.length]:null;}
+function isComplete(){return state.picks.length>=48;}
+function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');clearTimeout(t._h);t._h=setTimeout(()=>t.classList.remove('show'),2600);}
+
+/* ============ ACTIONS ============ */
+function selectId(id){
+  myId=id; saveId(id); renderId(); render();
+}
+async function draftTeam(team){
+  if(!dbOK){toast("No connection to the board.");return;}
+  state=await loadState();
+  if(isComplete()){toast("Draft's done — all 48 gone.");render();return;}
+  const cur=currentEntry();
+  if(!myId){toast("Pick your name first ↑");return;}
+  if(cur.drafter!==myId){toast("Not your pick — it's "+cur.drafter+"'s turn.");render();return;}
+  if(state.picks.some(p=>p.team===team)){toast(team+" is already gone.");render();return;}
+  const {error}=await sb.from('wc26_picks').insert({
+    pick:state.picks.length+1, round:cur.round, drafter:myId, team:team
+  });
+  if(error){
+    // Unique conflict on pick# or team => someone drafted at the same moment.
+    toast("Someone just beat you to it — board refreshed.");
+    state=await loadState(); render(); return;
+  }
+  toast("You bagged "+team+" "+(FLAG[team]||""));
+  state=await loadState(); render();
+}
+async function undoLast(){
+  if(!dbOK){toast("No connection to the board.");return;}
+  state=await loadState();
+  if(!state.picks.length){toast("Nothing to undo.");return;}
+  const last=state.picks[state.picks.length-1];
+  if(!confirm("Undo the last pick? That removes "+last.team+" from "+last.drafter+".")) return;
+  const {error}=await sb.from('wc26_picks').delete().eq('pick',last.pick);
+  if(error){toast("Couldn't undo — try again.");console.error(error);}
+  else toast("Undid "+last.team);
+  state=await loadState(); render();
+}
+async function resetDraft(){
+  if(!dbOK){toast("No connection to the board.");return;}
+  if(!confirm("Reset the ENTIRE draft for everyone? This cannot be undone."))return;
+  if(!confirm("Are you totally sure? All picks will be wiped."))return;
+  const {error}=await sb.from('wc26_picks').delete().gte('pick',1);
+  if(error){toast("Reset failed — try again.");console.error(error);}
+  else toast("Board reset.");
+  state=await loadState(); render();
+}
+
+/* ============ RENDER ============ */
+function renderId(){
+  const grid=document.getElementById('idGrid');
+  const bar=document.getElementById('idBar');
+  if(myId){
+    grid.style.display="none";bar.style.display="flex";
+    bar.innerHTML='<span class="pill">You are <b>'+myId+'</b></span>'+
+      '<button class="linkbtn" onclick="changeId()">change</button>';
+  }else{
+    grid.style.display="grid";bar.style.display="none";
+    grid.innerHTML=DRAFTERS.map(d=>'<button class="idBtn" onclick="selectId(\''+d+'\')">'+d+'</button>').join('');
+  }
+}
+window.changeId=function(){myId=null;saveId('');renderId();render();};
+
+function renderClock(){
+  const el=document.getElementById('clock');
+  const who=document.getElementById('clockWho');
+  const meta=document.getElementById('clockMeta');
+  if(isComplete()){
+    el.classList.remove('mine');
+    who.textContent="ALL DRAFTED";
+    meta.textContent="48 nations gone. Scroll down for the squads.";
+    el.querySelector('.lbl').innerHTML="🏆 Draft complete";
+    return;
+  }
+  const cur=currentEntry();
+  el.querySelector('.lbl').innerHTML='<span class="blip"></span>On the clock';
+  who.textContent=cur.drafter;
+  const mine=(cur.drafter===myId);
+  el.classList.toggle('mine',mine);
+  meta.innerHTML="Round "+cur.round+" of 6 · Overall pick #"+(state.picks.length+1)+
+    (mine?" · <b style='color:var(--teal)'>YOUR PICK — choose below</b>":"");
+}
+
+function renderBoard(){
+  const taken=takenMap();
+  // pick lookup by round+slot
+  const byCell={};
+  state.picks.forEach(p=>{
+    const e=SEQ[p.pick-1];byCell[e.round+"-"+e.slot]=p;
+  });
+  const cur=currentEntry();
+  let html='<table class="board"><thead><tr><th class="rnd">RD</th>';
+  DRAFTERS.forEach((d,i)=>{html+='<th>'+d+'</th>';});
+  html+='</tr></thead><tbody>';
+  for(let r=1;r<=ROUNDS;r++){
+    const rev=(r%2===0);
+    html+='<tr><th class="rnd">'+r+'<div class="snakearrow">'+(rev?'←':'→')+'</div></th>';
+    for(let s=0;s<8;s++){
+      const cell=byCell[r+"-"+s];
+      const isNow=cur&&cur.round===r&&cur.slot===s;
+      if(cell){
+        html+='<td class="filled"><span class="pk">#'+cell.pick+'</span><span class="fl">'+(FLAG[cell.team]||'')+'</span>'+cell.team+'</td>';
+      }else{
+        html+='<td class="'+(isNow?'now':'')+'">'+(isNow?'<span class="pk">NOW</span>…on the clock':'')+'</td>';
+      }
+    }
+    html+='</tr>';
+  }
+  html+='</tbody></table>';
+  document.getElementById('board').innerHTML=html;
+}
+
+function renderFilters(){
+  const f=document.getElementById('filters');
+  const opts=["ALL","AVAILABLE",...Object.keys(GROUPS).map(g=>"GRP "+g)];
+  f.innerHTML=opts.map(o=>'<button class="fbtn '+(activeFilter===o?'on':'')+'" onclick="setFilter(\''+o+'\')">'+o+'</button>').join('');
+}
+window.setFilter=function(o){activeFilter=o;renderFilters();renderTeams();};
+
+function renderTeams(){
+  const taken=takenMap();
+  const cur=currentEntry();
+  const myTurn=cur&&myId&&cur.drafter===myId;
+  const hint=document.getElementById('teamHint');
+  if(isComplete())hint.innerHTML="Every nation's been drafted. 🏁";
+  else if(!myId)hint.innerHTML="Pick your name up top to start drafting.";
+  else if(myTurn)hint.innerHTML="<b style='color:var(--teal)'>You're on the clock</b> — tap any nation outlined in teal to draft it.";
+  else hint.innerHTML="Waiting on <b>"+cur.drafter+"</b>. You'll be able to pick when it's your turn.";
+
+  const cont=document.getElementById('teams');
+  let groupsToShow=Object.keys(GROUPS);
+  if(activeFilter.startsWith("GRP "))groupsToShow=[activeFilter.split(" ")[1]];
+  let html="";
+  groupsToShow.forEach(g=>{
+    let teams=GROUPS[g];
+    if(activeFilter==="AVAILABLE")teams=teams.filter(([n])=>!taken[n]);
+    if(!teams.length)return;
+    html+='<div class="grpTitle">Group '+g+'</div><div class="teamGrid">';
+    teams.forEach(([n,fl])=>{
+      const isTaken=taken[n];
+      const draftable=myTurn&&!isTaken&&!isComplete();
+      html+='<div class="team '+(isTaken?'taken':'')+' '+(draftable?'draftable':'')+'" '+
+        (draftable?'onclick="draftTeam(\''+n.replace(/'/g,"\\'")+'\')"':'')+'>'+
+        '<span class="grpdot" style="background:'+GROUP_COLORS[g]+'"></span>'+
+        '<span class="flag">'+fl+'</span><span class="nm">'+n+'</span>'+
+        (isTaken?'<span class="by">'+isTaken+'</span>':'')+'</div>';
+    });
+    html+='</div>';
+  });
+  cont.innerHTML=html||'<p class="muted">Nothing to show for this filter.</p>';
+}
+
+function renderRosters(){
+  const cont=document.getElementById('rosters');
+  const byDrafter={};DRAFTERS.forEach(d=>byDrafter[d]=[]);
+  state.picks.forEach(p=>byDrafter[p.drafter].push(p));
+  cont.innerHTML=DRAFTERS.map(d=>{
+    const picks=byDrafter[d];
+    let lis="";
+    for(let i=0;i<ROUNDS;i++){
+      if(picks[i])lis+='<li><span class="fl">'+(FLAG[picks[i].team]||'')+'</span>'+picks[i].team+'</li>';
+      else lis+='<li class="empty">— round '+(i+1)+' —</li>';
+    }
+    return '<div class="rost '+(d===myId?'me':'')+'"><h3>'+d+'<span>'+picks.length+'/6</span></h3><ul>'+lis+'</ul></div>';
+  }).join('');
+}
+
+function heroSilhouette(h){
+  const [c1,c2,c3]=h.col;
+  let hairPath="";
+  if(h.hair==="curls")hairPath='<circle cx="50" cy="30" r="6" fill="#2a1a0e"/><circle cx="38" cy="34" r="6" fill="#2a1a0e"/><circle cx="62" cy="34" r="6" fill="#2a1a0e"/><circle cx="44" cy="26" r="6" fill="#2a1a0e"/><circle cx="56" cy="26" r="6" fill="#2a1a0e"/>';
+  else if(h.hair==="bald")hairPath='';
+  else if(h.hair==="beard")hairPath='<path d="M34 50 Q50 78 66 50 Q66 66 50 70 Q34 66 34 50Z" fill="#7a2e12"/><path d="M35 32 Q50 22 65 32 L63 40 Q50 32 37 40Z" fill="#7a2e12"/>';
+  else hairPath='<path d="M35 33 Q50 20 65 33 L64 41 Q50 31 36 41Z" fill="#2a1a0e"/>';
+  return '<svg viewBox="0 0 100 150" width="100%" height="100%" preserveAspectRatio="xMidYMax meet">'+
+    '<defs><linearGradient id="bg'+h.n.replace(/\W/g,'')+'" x1="0" y1="0" x2="0" y2="1">'+
+      '<stop offset="0" stop-color="'+c1+'"/><stop offset="1" stop-color="'+c2+'"/></linearGradient></defs>'+
+    '<rect width="100" height="150" fill="url(#bg'+h.n.replace(/\W/g,'')+')"/>'+
+    '<g opacity="0.12"><circle cx="20" cy="20" r="2.5" fill="#000"/><circle cx="40" cy="20" r="2.5" fill="#000"/><circle cx="60" cy="20" r="2.5" fill="#000"/><circle cx="80" cy="20" r="2.5" fill="#000"/></g>'+
+    // shoulders/jersey
+    '<path d="M18 150 Q18 108 50 102 Q82 108 82 150Z" fill="'+c3+'"/>'+
+    '<path d="M18 150 Q18 108 50 102 Q82 108 82 150Z" fill="#000" opacity="0.08"/>'+
+    // neck + head
+    '<rect x="44" y="86" width="12" height="18" fill="#e8b48a"/>'+
+    '<circle cx="50" cy="62" r="22" fill="#e8b48a"/>'+
+    hairPath+
+    // simple face
+    '<circle cx="43" cy="60" r="2" fill="#222"/><circle cx="57" cy="60" r="2" fill="#222"/>'+
+    '<path d="M44 70 Q50 74 56 70" stroke="#222" stroke-width="1.5" fill="none"/>'+
+    '</svg>';
+}
+function renderHeroes(){
+  const cont=document.getElementById('heroes');
+  cont.innerHTML=HEROES.map(h=>{
+    const [c1,c2,c3]=h.col;
+    return '<div class="heroCard"><div class="yr">\''+h.y.slice(2)+'</div>'+
+      '<div class="pic">'+heroSilhouette(h)+
+        '<div class="natban" style="background:linear-gradient(90deg,'+c1+' 33%,'+c2+' 33% 66%,'+c3+' 66%)"></div></div>'+
+      '<div class="name">'+h.n+'</div><div class="role">'+h.c+' · '+h.y+'</div>'+
+      '<div class="fact">'+h.f+'</div></div>';
+  }).join('');
+}
+
+function renderStatus(){
+  const s=document.getElementById('liveStatus');
+  if(!dbOK){s.innerHTML='⚠ Can\'t reach the shared board (check connection).';s.style.color='var(--sun)';return;}
+  s.style.color='';
+  s.innerHTML='<span class="live">●</span> Live · '+state.picks.length+'/48 picked · syncs across all devices';
+}
+
+function render(){
+  renderClock();renderBoard();renderFilters();renderTeams();renderRosters();renderStatus();
+}
+
+/* ============ POLL / INIT ============ */
+async function sync(){
+  const fresh=await loadState();
+  if(JSON.stringify(fresh)!==JSON.stringify(state)){state=fresh;render();}
+}
+async function init(){
+  myId=loadId();
+  state=await loadState();
+  renderId();renderHeroes();render();
+  if(dbOK){
+    // Instant push updates via Supabase Realtime…
+    try{
+      sb.channel('wc26_draft')
+        .on('postgres_changes',{event:'*',schema:'public',table:'wc26_picks'},()=>sync())
+        .subscribe();
+    }catch(e){console.error(e);}
+    // …plus a safety-net poll in case a realtime event is missed.
+    setInterval(sync,5000);
+  }
+}
+document.getElementById('undoBtn').onclick=undoLast;
+document.getElementById('resetBtn').onclick=resetDraft;
+init();
+</script>
+</body>
+</html>
