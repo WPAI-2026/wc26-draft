@@ -186,6 +186,28 @@
   .idBtn.locked{opacity:.5;border-style:dashed;}
   .idBtn .lockNote{display:block;font-family:'DM Mono',monospace;font-size:9px;letter-spacing:.05em;color:var(--sun);margin-top:4px;text-transform:none;}
 
+  /* ===== prize standings ===== */
+  #prizePanel{border:3px solid var(--sun);}
+  .prizeGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px;margin-top:14px;}
+  .prizeCard{border:3px solid var(--line);border-radius:12px;padding:13px 14px;background:linear-gradient(180deg,#2a2068,#191350);
+    box-shadow:4px 4px 0 rgba(0,0,0,.4);position:relative;overflow:hidden;}
+  .prizeCard.live{border-color:var(--teal);}
+  .prizeCard .pTitle{font-family:'Anton',sans-serif;text-transform:uppercase;font-size:17px;letter-spacing:.5px;color:var(--sun);line-height:1;}
+  .prizeCard .pBlurb{font-size:11px;color:#aaa3d6;margin:4px 0 10px;line-height:1.35;}
+  .prizeCard .pOwner{font-family:'Anton',sans-serif;font-size:24px;text-transform:uppercase;line-height:.95;filter:drop-shadow(2px 2px 0 var(--mag));}
+  .prizeCard .pOwner.tbd{color:#6f68a0;filter:none;font-size:18px;}
+  .prizeCard .pTeam{font-size:13px;font-weight:800;margin-top:3px;color:var(--paper);}
+  .prizeCard .pDetail{font-family:'DM Mono',monospace;font-size:11px;color:#cfc8ff;margin-top:7px;line-height:1.4;}
+  .prizeCard .pShared{position:absolute;top:8px;right:8px;font-family:'DM Mono',monospace;font-size:9px;background:var(--cobalt);color:#fff;padding:2px 6px;border-radius:8px;}
+
+  /* ===== results ===== */
+  .resRow{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:9px 10px;border-radius:8px;margin-bottom:6px;
+    background:rgba(255,255,255,.04);border:1px solid var(--line);font-size:13px;}
+  .resRow .rStage{font-family:'DM Mono',monospace;font-size:10px;color:var(--sun);min-width:46px;}
+  .resRow .rTeam{display:flex;align-items:center;gap:5px;}
+  .resRow .rTeam .own{font-family:'DM Mono',monospace;font-size:9px;color:var(--teal);}
+  .resRow .rScore{font-family:'Anton',sans-serif;font-size:16px;padding:0 8px;}
+
   /* ===== change log ===== */
   .logWrap{margin-top:12px;display:flex;flex-direction:column;gap:6px;max-height:340px;overflow-y:auto;}
   .logRow{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:8px 10px;border-radius:8px;
@@ -220,6 +242,13 @@
     <div class="meta" id="clockMeta">Loading the board…</div>
   </section>
 
+  <!-- PRIZE STANDINGS -->
+  <section class="panel" id="prizePanel">
+    <h2><span class="tag">PRIZES</span> Who's Winning What</h2>
+    <p class="muted">Live leaders for every side-prize, auto-updated from the tournament. <span id="prizeUpdated"></span></p>
+    <div class="prizeGrid" id="prizes"></div>
+  </section>
+
   <!-- DRAFT BOARD -->
   <section class="panel">
     <h2><span class="tag">LIVE</span> The Board</h2>
@@ -240,6 +269,13 @@
   <section class="panel">
     <h2><span class="tag">SQUADS</span> The Hauls</h2>
     <div class="rostGrid" id="rosters"></div>
+  </section>
+
+  <!-- RESULTS -->
+  <section class="panel" id="resultsPanel" style="display:none;">
+    <h2><span class="tag">SCORES</span> Results</h2>
+    <p class="muted">Finished matches, newest first — each team tagged with its owner.</p>
+    <div id="results"></div>
   </section>
 
   <!-- CULT HEROES -->
@@ -367,6 +403,8 @@ const DEVICE_ID=(function(){
 let state={picks:[]};
 let events=[];          // change log rows
 let claimedSet={};      // drafter -> true if already locked to a device
+let prizes=[];          // computed prize leaders
+let results=[];         // finished matches
 let myId=null;
 let activeFilter="ALL";
 
@@ -399,6 +437,28 @@ async function loadClaims(){
     const m={};(data||[]).forEach(r=>m[r.drafter]=true);return m;
   }catch(e){console.error(e);return claimedSet;}
 }
+async function loadPrizes(){
+  if(!dbOK) return [];
+  try{
+    const {data,error}=await sb.from('wc26_prizes')
+      .select('prize_key,title,blurb,leader_owner,leader_team,detail,shared,sort,updated_at')
+      .order('sort',{ascending:true});
+    if(error){console.error(error);return prizes;}
+    return data||[];
+  }catch(e){console.error(e);return prizes;}
+}
+async function loadResults(){
+  if(!dbOK) return [];
+  try{
+    const {data,error}=await sb.from('wc26_matches')
+      .select('match_no,stage,grp,home,away,home_score,away_score,status,kickoff_utc')
+      .eq('status','finished').order('kickoff_utc',{ascending:false}).limit(60);
+    if(error){console.error(error);return results;}
+    return data||[];
+  }catch(e){console.error(e);return results;}
+}
+// team -> owner, derived from the completed draft
+function ownerOf(team){const p=state.picks.find(p=>p.team===team);return p?p.drafter:null;}
 // Identity is per-device, so it stays in the browser (localStorage).
 function loadId(){try{return localStorage.getItem(ID_KEY)||null;}catch(e){return null;}}
 function saveId(id){try{if(id)localStorage.setItem(ID_KEY,id);else localStorage.removeItem(ID_KEY);}catch(e){}}
@@ -653,19 +713,55 @@ function renderLog(){
   }).join('');
 }
 
+function renderPrizes(){
+  const cont=document.getElementById('prizes');
+  if(!cont)return;
+  const upd=document.getElementById('prizeUpdated');
+  if(!prizes.length){cont.innerHTML='<p class="muted">Setting up… leaders will appear once matches kick off.</p>';return;}
+  let latest=null;
+  cont.innerHTML=prizes.map(p=>{
+    if(p.updated_at && (!latest || p.updated_at>latest)) latest=p.updated_at;
+    const has=p.leader_owner && p.leader_owner!=='TBD';
+    const owner=has?p.leader_owner:'TBD';
+    return '<div class="prizeCard'+(has?' live':'')+'">'+
+      (p.shared?'<span class="pShared">SHARED</span>':'')+
+      '<div class="pTitle">'+p.title+'</div>'+
+      (p.blurb?'<div class="pBlurb">'+p.blurb+'</div>':'')+
+      '<div class="pOwner'+(has?'':' tbd')+'">'+owner+'</div>'+
+      (p.leader_team?'<div class="pTeam">'+p.leader_team+'</div>':'')+
+      (p.detail?'<div class="pDetail">'+p.detail+'</div>':'')+
+    '</div>';
+  }).join('');
+  if(upd) upd.textContent = latest ? ('Updated '+fmtTime(latest)) : '';
+}
+function renderResults(){
+  const panel=document.getElementById('resultsPanel');
+  const cont=document.getElementById('results');
+  if(!panel||!cont)return;
+  if(!results.length){panel.style.display='none';return;}
+  panel.style.display='';
+  const STG={Group:'GRP',R32:'R32',R16:'R16',QF:'QF',SF:'SF','3P':'3rd',Final:'FINAL'};
+  cont.innerHTML=results.map(m=>{
+    const ho=ownerOf(m.home), ao=ownerOf(m.away);
+    const t=(nm,ow)=>'<span class="rTeam">'+(FLAG[nm]||'')+' '+nm+(ow?' <span class="own">('+ow+')</span>':'')+'</span>';
+    return '<div class="resRow"><span class="rStage">'+(STG[m.stage]||m.stage||'')+(m.grp?' '+m.grp:'')+'</span>'+
+      t(m.home,ho)+'<span class="rScore">'+(m.home_score)+'–'+(m.away_score)+'</span>'+t(m.away,ao)+'</div>';
+  }).join('');
+}
+
 function render(){
-  renderClock();renderBoard();renderFilters();renderTeams();renderRosters();renderStatus();renderLog();
+  renderClock();renderBoard();renderFilters();renderTeams();renderRosters();renderStatus();renderLog();renderPrizes();renderResults();
 }
 
 /* ============ POLL / INIT ============ */
 async function refreshAll(){
-  const [s,ev,cl]=await Promise.all([loadState(),loadEvents(),loadClaims()]);
-  state=s; events=ev; claimedSet=cl;
+  const [s,ev,cl,pz,rs]=await Promise.all([loadState(),loadEvents(),loadClaims(),loadPrizes(),loadResults()]);
+  state=s; events=ev; claimedSet=cl; prizes=pz; results=rs;
 }
 async function sync(){
-  const before=JSON.stringify(state)+JSON.stringify(events)+JSON.stringify(claimedSet);
+  const before=JSON.stringify([state,events,claimedSet,prizes,results]);
   await refreshAll();
-  if(JSON.stringify(state)+JSON.stringify(events)+JSON.stringify(claimedSet)!==before){renderId();render();}
+  if(JSON.stringify([state,events,claimedSet,prizes,results])!==before){renderId();render();}
 }
 async function init(){
   myId=loadId();
@@ -684,6 +780,8 @@ async function init(){
       sb.channel('wc26_draft')
         .on('postgres_changes',{event:'*',schema:'public',table:'wc26_picks'},()=>sync())
         .on('postgres_changes',{event:'*',schema:'public',table:'wc26_events'},()=>sync())
+        .on('postgres_changes',{event:'*',schema:'public',table:'wc26_prizes'},()=>sync())
+        .on('postgres_changes',{event:'*',schema:'public',table:'wc26_matches'},()=>sync())
         .subscribe();
     }catch(e){console.error(e);}
     // …plus a safety-net poll in case a realtime event is missed.
