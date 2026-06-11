@@ -208,6 +208,21 @@
   .resRow .rTeam .own{font-family:'DM Mono',monospace;font-size:9px;color:var(--teal);}
   .resRow .rScore{font-family:'Anton',sans-serif;font-size:16px;padding:0 8px;}
 
+  /* ===== hero + collapsibles + prize form ===== */
+  .hero{border-width:4px;box-shadow:8px 8px 0 rgba(255,210,63,.22);}
+  .hero .heroKicker{font-family:'DM Mono',monospace;letter-spacing:.3em;font-size:11px;color:var(--teal);text-transform:uppercase;margin-bottom:6px;}
+  .hero h2{font-size:clamp(26px,5vw,40px);}
+  .collapsible>summary{cursor:pointer;list-style:none;font-family:'Anton',sans-serif;text-transform:uppercase;font-size:24px;letter-spacing:1px;display:flex;align-items:center;gap:10px;}
+  .collapsible>summary::-webkit-details-marker{display:none;}
+  .collapsible>summary .chev2{margin-left:auto;font-size:15px;transition:transform .15s;color:var(--sun);}
+  .collapsible[open]>summary .chev2{transform:rotate(180deg);}
+  .pform{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-top:12px;}
+  .pform label{display:flex;flex-direction:column;gap:4px;font-family:'DM Mono',monospace;font-size:11px;color:#cfc8ff;}
+  .pform input[type=text],.pform select{font-family:'Archivo',sans-serif;font-size:14px;padding:8px 10px;border-radius:8px;
+    border:2px solid var(--line);background:rgba(255,255,255,.05);color:var(--paper);}
+  .pform .ckline{flex-direction:row;align-items:center;gap:8px;grid-column:1/-1;font-size:12px;color:#aaa3d6;}
+  .dgr.save{background:var(--teal);color:var(--ink);}
+
   /* ===== change log ===== */
   .logWrap{margin-top:12px;display:flex;flex-direction:column;gap:6px;max-height:340px;overflow-y:auto;}
   .logRow{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:8px 10px;border-radius:8px;
@@ -227,48 +242,12 @@
     <div class="sub">8-Man Snake Sweepstake · <b>48 Nations</b> · 6 Picks Each · No Clock, No Mercy</div>
   </header>
 
-  <!-- IDENTITY -->
-  <section class="panel" id="idPanel">
-    <h2><span class="tag">STEP 1</span> Who are ya?</h2>
-    <p class="muted">Tap your name to claim it. Your name then locks to this device — only you can draft as you, and nobody can pick on your behalf. Names already claimed elsewhere show a 🔒.</p>
-    <div id="idGrid"></div>
-    <div class="idBar" id="idBar" style="display:none;"></div>
-  </section>
-
-  <!-- ON THE CLOCK -->
-  <section class="panel" id="clock">
-    <div class="lbl"><span class="blip"></span>On the clock</div>
-    <div class="who" id="clockWho">—</div>
-    <div class="meta" id="clockMeta">Loading the board…</div>
-  </section>
-
-  <!-- PRIZE STANDINGS -->
-  <section class="panel" id="prizePanel">
+  <!-- PRIZE STANDINGS (HERO) -->
+  <section class="panel hero" id="prizePanel">
+    <div class="heroKicker">🏆 Live Tournament Tracker</div>
     <h2><span class="tag">PRIZES</span> Who's Winning What</h2>
-    <p class="muted">Live leaders for every side-prize, auto-updated from the tournament. <span id="prizeUpdated"></span></p>
+    <p class="muted">Current leader for every side-prize, auto-updated from the tournament as games finish. <span id="prizeUpdated"></span></p>
     <div class="prizeGrid" id="prizes"></div>
-  </section>
-
-  <!-- DRAFT BOARD -->
-  <section class="panel">
-    <h2><span class="tag">LIVE</span> The Board</h2>
-    <p class="muted">Snake order — it reverses every round. Pick <b>1</b> overall starts top-left.</p>
-    <div class="boardScroll"><div id="board"></div></div>
-    <div class="status" id="liveStatus">● syncing…</div>
-  </section>
-
-  <!-- TEAMS -->
-  <section class="panel">
-    <h2><span class="tag">POOL</span> Pick a Nation</h2>
-    <p class="muted" id="teamHint">Select your name above to start drafting. Tap any available nation when it's your turn.</p>
-    <div class="filters" id="filters"></div>
-    <div id="teams"></div>
-  </section>
-
-  <!-- ROSTERS -->
-  <section class="panel">
-    <h2><span class="tag">SQUADS</span> The Hauls</h2>
-    <div class="rostGrid" id="rosters"></div>
   </section>
 
   <!-- RESULTS -->
@@ -278,39 +257,49 @@
     <div id="results"></div>
   </section>
 
-  <!-- CULT HEROES -->
+  <!-- ROSTERS -->
   <section class="panel">
-    <h2><span class="tag">90s</span> Cult Hero Sticker Wall</h2>
-    <p class="muted">Stylised tribute cards to the niche legends of '90s international football. (Silhouettes are illustrative — not the real lads.)</p>
-    <div class="heroStrip" id="heroes"></div>
+    <h2><span class="tag">SQUADS</span> The Hauls</h2>
+    <div class="rostGrid" id="rosters"></div>
   </section>
 
-  <!-- MECHANICS -->
-  <section class="panel">
-    <h2><span class="tag">RULES</span> How It Works</h2>
-    <div class="mechList">
-      <div class="mech"><div class="n"></div><div class="body"><b>Snake order.</b> Round 1 runs Rob → Mike → Freddie → Ryan → Jordan → Chris → Will → Dean. Round 2 flips it (Dean first), Round 3 flips back, and so on for 6 rounds.</div></div>
-      <div class="mech"><div class="n"></div><div class="body"><b>Everyone gets 6 nations.</b> 8 drafters × 6 rounds = all 48 World Cup teams drafted. Nothing left on the shelf.</div></div>
-      <div class="mech"><div class="n"></div><div class="body"><b>No time limit.</b> Take all the time you want — the board waits. It only unlocks the pick button for whoever is on the clock.</div></div>
-      <div class="mech"><div class="n"></div><div class="body"><b>Live for everyone.</b> When someone drafts, it updates on every device within a few seconds. Keep the page open to watch it unfold.</div></div>
-      <div class="mech"><div class="n"></div><div class="body"><b>Winning.</b> However you've agreed to score it — last team standing, furthest run, total goals. The draft just hands out the nations; the glory's on you.</div></div>
-    </div>
-  </section>
-
-  <!-- CHANGE LOG -->
-  <section class="panel">
-    <h2><span class="tag">AUDIT</span> Change Log</h2>
-    <p class="muted">Every claim, pick, undo and reset — recorded server-side with the device's IP and time. Newest first.</p>
+  <!-- CHANGE LOG (collapsible) -->
+  <details class="panel collapsible" id="logPanel">
+    <summary><span class="tag">AUDIT</span> Change Log <span class="chev2">▾</span></summary>
+    <p class="muted">Every claim, draft and prize update — recorded server-side with the device's IP and time. Newest first.</p>
     <div id="log" class="logWrap"></div>
+  </details>
+
+  <!-- DRAFT BOARD (collapsible, archived at the bottom) -->
+  <details class="panel collapsible" id="boardPanel">
+    <summary><span class="tag">DRAFT</span> The Board <span class="chev2">▾</span></summary>
+    <p class="muted">The completed snake draft — who picked what, round by round.</p>
+    <div class="boardScroll"><div id="board"></div></div>
+    <div class="status" id="liveStatus">● syncing…</div>
+  </details>
+
+  <!-- IDENTITY (kept small for the change log) -->
+  <section class="panel" id="idPanel">
+    <h2><span class="tag">YOU</span> Who are ya?</h2>
+    <p class="muted">Your name is locked to this device — it's just used to sign your entries in the change log now the draft's done.</p>
+    <div id="idGrid"></div>
+    <div class="idBar" id="idBar" style="display:none;"></div>
   </section>
 
   <!-- ORGANISER -->
   <details class="org">
-    <summary>⚙ Organiser controls</summary>
-    <p class="muted" style="margin-top:8px;">These affect the shared board for <b>everyone</b>. Use with care.</p>
+    <summary>⚙ Organiser controls — update a prize</summary>
+    <p class="muted" style="margin-top:8px;">Manually set who's winning a prize — handy to settle a same-minute tie the auto-tracker can't, or fix anything it gets wrong. This is what <b>everyone</b> sees.</p>
+    <div class="pform">
+      <label>Prize<select id="pfPrize"></select></label>
+      <label>Winner (drafter)<input id="pfOwner" type="text" placeholder="e.g. Will" autocomplete="off"></label>
+      <label>Team(s)<input id="pfTeam" type="text" placeholder="e.g. Germany" autocomplete="off"></label>
+      <label>Detail<input id="pfDetail" type="text" placeholder="e.g. 3' vs Mexico" autocomplete="off"></label>
+      <label class="ckline"><input id="pfShared" type="checkbox"> Mark as shared</label>
+      <label class="ckline"><input id="pfAuto" type="checkbox"> Let the auto-tracker keep updating this prize (otherwise your edit is locked in)</label>
+    </div>
     <div class="row">
-      <button class="dgr undo" id="undoBtn">↶ Undo last pick</button>
-      <button class="dgr reset" id="resetBtn">⟲ Reset whole draft</button>
+      <button class="dgr save" id="prizeSaveBtn">✓ Update prize</button>
     </div>
   </details>
 
@@ -441,7 +430,7 @@ async function loadPrizes(){
   if(!dbOK) return [];
   try{
     const {data,error}=await sb.from('wc26_prizes')
-      .select('prize_key,title,blurb,leader_owner,leader_team,detail,shared,sort,updated_at')
+      .select('prize_key,title,blurb,leader_owner,leader_team,detail,shared,locked,sort,updated_at')
       .order('sort',{ascending:true});
     if(error){console.error(error);return prizes;}
     return data||[];
@@ -706,7 +695,9 @@ function renderLog(){
   if(!dbOK){cont.innerHTML='<p class="muted">Log unavailable — no connection.</p>';return;}
   if(!events.length){cont.innerHTML='<p class="muted">No activity yet. Claims and picks will show up here.</p>';return;}
   cont.innerHTML=events.map(e=>{
-    const m=ACTION_META[e.action]||{ic:'•',txt:()=>e.action};
+    const m=ACTION_META[e.action]||(String(e.action).startsWith('prize')?
+      {ic:'📝',txt:(e)=>'Prize updated'+(e.drafter?' — <b>'+e.drafter+'</b>':' — cleared')+(e.team?' ('+e.team+')':'')}:
+      {ic:'•',txt:()=>e.action});
     return '<div class="logRow"><span class="logIc">'+m.ic+'</span>'+
       '<span class="logTxt">'+m.txt(e)+'</span>'+
       '<span class="logMeta">'+fmtTime(e.created_at)+' · IP '+(e.ip||'—')+'</span></div>';
@@ -725,6 +716,7 @@ function renderPrizes(){
     const owner=has?p.leader_owner:'TBD';
     return '<div class="prizeCard'+(has?' live':'')+'">'+
       (p.shared?'<span class="pShared">SHARED</span>':'')+
+      (p.locked?'<span class="pShared" style="left:8px;right:auto;background:var(--tang)">MANUAL</span>':'')+
       '<div class="pTitle">'+p.title+'</div>'+
       (p.blurb?'<div class="pBlurb">'+p.blurb+'</div>':'')+
       '<div class="pOwner'+(has?'':' tbd')+'">'+owner+'</div>'+
@@ -733,6 +725,42 @@ function renderPrizes(){
     '</div>';
   }).join('');
   if(upd) upd.textContent = latest ? ('Updated '+fmtTime(latest)) : '';
+  populatePrizeForm();
+}
+function populatePrizeForm(){
+  const sel=document.getElementById('pfPrize');
+  if(!sel||!prizes.length)return;
+  if(sel.options.length!==prizes.length){            // build once; don't clobber while typing
+    sel.innerHTML=prizes.map(p=>'<option value="'+p.prize_key+'">'+p.title+'</option>').join('');
+    sel.onchange=fillPrizeForm;
+    fillPrizeForm();
+  }
+}
+function fillPrizeForm(){
+  const sel=document.getElementById('pfPrize');if(!sel)return;
+  const p=prizes.find(x=>x.prize_key===sel.value);if(!p)return;
+  const set=(id,v)=>{const el=document.getElementById(id);if(el)el.value=v;};
+  set('pfOwner',(p.leader_owner&&p.leader_owner!=='TBD')?p.leader_owner:'');
+  set('pfTeam',p.leader_team||'');
+  set('pfDetail',p.detail||'');
+  const sh=document.getElementById('pfShared');if(sh)sh.checked=!!p.shared;
+  const au=document.getElementById('pfAuto');if(au)au.checked=!p.locked;
+}
+async function savePrize(){
+  if(!dbOK){toast("No connection to the board.");return;}
+  const sel=document.getElementById('pfPrize');if(!sel||!sel.value){toast("Pick a prize first.");return;}
+  const {error}=await sb.rpc('set_prize',{
+    p_key:sel.value,
+    p_owner:document.getElementById('pfOwner').value,
+    p_team:document.getElementById('pfTeam').value,
+    p_detail:document.getElementById('pfDetail').value,
+    p_shared:document.getElementById('pfShared').checked,
+    p_auto:document.getElementById('pfAuto').checked
+  });
+  if(error){toast("Update failed — try again.");console.error(error);return;}
+  const title=(prizes.find(p=>p.prize_key===sel.value)||{}).title||'prize';
+  toast("Updated: "+title);
+  await refreshAll(); render();
 }
 function renderResults(){
   const panel=document.getElementById('resultsPanel');
@@ -750,7 +778,7 @@ function renderResults(){
 }
 
 function render(){
-  renderClock();renderBoard();renderFilters();renderTeams();renderRosters();renderStatus();renderLog();renderPrizes();renderResults();
+  renderBoard();renderRosters();renderStatus();renderLog();renderPrizes();renderResults();
 }
 
 /* ============ POLL / INIT ============ */
@@ -773,7 +801,7 @@ async function init(){
     if(error){toast(myId+" is now claimed on another device — choose again.");myId=null;saveId('');}
     claimedSet=await loadClaims();
   }
-  renderId();renderHeroes();render();
+  renderId();render();
   if(dbOK){
     // Instant push updates via Supabase Realtime (picks + the change log)…
     try{
@@ -788,8 +816,7 @@ async function init(){
     setInterval(sync,5000);
   }
 }
-document.getElementById('undoBtn').onclick=undoLast;
-document.getElementById('resetBtn').onclick=resetDraft;
+document.getElementById('prizeSaveBtn').onclick=savePrize;
 init();
 </script>
 </body>
